@@ -1,0 +1,122 @@
+#!./env/bin/python3
+
+# Using https://stackabuse.com/how-to-send-emails-with-gmail-using-python/ as guide for sending gmails
+
+import smtplib
+import pyspeedtest
+from sqlalchemy import create_engine, Column, ForeignKey, Integer, String, Float, Boolean
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, sessionmaker
+import time
+import datetime
+
+
+Base = declarative_base()
+
+class TestResult(Base):
+    __tablename__ = 'testresults'
+    id = Column(Integer, primary_key=True)
+    date = Column(Float)
+    ping = Column(Float, default=0)
+    upload = Column(Float, default=0)
+    download = Column(Float, default=0)
+    sent = Column(Boolean, default=False)
+
+    def __repr__(self):
+        return f'{{"date":{self.date},"ping":{self.ping},"upload":{self.upload},"download":{self.download}}}'
+
+
+def init_db():
+    engine = create_engine('sqlite:///db.sqlite')
+    Base.metadata.create_all(engine)
+    DBSession = sessionmaker(bind=engine)
+    return DBSession()
+
+
+def make_email(subject, body):
+    return f"""\
+FROM: microcom.ptp.test@gmail.com
+TO: achythlook@microcom.tv
+SUBJECT: {subject}
+
+{body}
+    """
+
+def get_gmail_creds():
+    gmail_user = 'microcom.ptp.test@gmail.com'
+    f = open("../testpass.txt")
+    gmail_password = f.read()
+    f.close()
+    return (gmail_user, gmail_password)
+
+def setup_server():
+    try:
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server.ehlo()
+        return server
+    except Exception as e:
+        print('something went wrong')
+        return False
+
+
+def record_speed_test(sess):
+    st = None
+    record = TestResult(date=time.time())
+    try:
+        st = pyspeedtest.SpeedTest()
+        record.ping = st.ping()
+        record.upload = st.upload()
+        record.download = st.download()
+    except:
+        print("Speed Test didn't complete")
+    sess.add(record)
+    sess.commit()
+    return record
+
+
+def send_an_email(subject, body):
+    server = setup_server()
+    user, password = get_gmail_creds()
+    message = make_email(subject, body)
+    try:
+        server.login(user, password)
+        server.sendmail(user, 'achythlook@microcom.tv', message)
+        server.close()
+        return True
+    except:
+        print("whoops")
+        return False
+
+def unsents(sess):
+    q = sess.query(TestResult).filter(TestResult.sent==False).all()
+    return q
+
+
+def send_results_email(sess):
+    q = unsents(sess)
+    jsonres = str(q)
+    return send_an_email(f"PTP Speed Results from {datetime.date.today()}", jsonres)
+
+def run_tests(sess):
+    for x in range(5):
+        record_speed_test(sess)
+
+
+def run_tests_and_send():
+    sess = init_db()
+    run_tests(sess)
+    sent = send_results_email(sess)
+    if (sent):
+        u = unsents(sess)
+        for x in u:
+            x.sent = True 
+        sess.commit()
+    else:
+        print('results not sent today')
+
+    
+
+
+if __name__ == "__main__":
+    # run_tests_and_send()
+    run_tests_and_send()
