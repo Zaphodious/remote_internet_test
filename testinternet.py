@@ -9,9 +9,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 import time
 import datetime
+import os
 
 import argparse
-
 
 Base = declarative_base()
 
@@ -34,11 +34,11 @@ def init_db():
     DBSession = sessionmaker(bind=engine)
     return DBSession()
 
-to_email = 'ptptesting@microcom.tv'
 
 def make_email(subject, body):
+    user = os.environ['TESTUSER']
     return f"""\
-FROM: microcom.ptp.test@gmail.com
+FROM: {user}
 TO: {to_email}
 SUBJECT: {subject}
 
@@ -46,11 +46,9 @@ SUBJECT: {subject}
     """
 
 def get_gmail_creds():
-    gmail_user = 'microcom.ptp.test@gmail.com'
-    f = open("../testpass.txt")
-    gmail_password = f.read()
-    f.close()
-    return (gmail_user, gmail_password)
+    gmail_user = os.environ['TESTUSER']
+    gmail_pass = os.environ['TESTPASS']
+    return (gmail_user, gmail_pass)
 
 def setup_server():
     try:
@@ -131,7 +129,7 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--iterations', type=int, help='Number of times to take the test (default 5)')
     args = parser.parse_args()
     sess = init_db()
-    print(args)
+    print(os.environ['TESTUSER'])
     if (args.iterations):
         times_to_take_test = args.iterations
     if (args.test):
