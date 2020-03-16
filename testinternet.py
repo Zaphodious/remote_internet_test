@@ -10,6 +10,8 @@ from sqlalchemy.orm import relationship, sessionmaker
 import time
 import datetime
 
+import argparse
+
 
 Base = declarative_base()
 
@@ -32,11 +34,12 @@ def init_db():
     DBSession = sessionmaker(bind=engine)
     return DBSession()
 
+to_email = 'ptptesting@microcom.tv'
 
 def make_email(subject, body):
     return f"""\
 FROM: microcom.ptp.test@gmail.com
-TO: achythlook@microcom.tv
+TO: {to_email}
 SUBJECT: {subject}
 
 {body}
@@ -95,28 +98,46 @@ def unsents(sess):
 def send_results_email(sess):
     q = unsents(sess)
     jsonres = str(q)
-    return send_an_email(f"PTP Speed Results from {datetime.date.today()}", jsonres)
+    sent = send_an_email(f"PTP Speed Results from {datetime.date.today()}", jsonres)
+    if (sent):
+        u = unsents(sess)
+        for x in u:
+            x.sent = True 
+        sess.commit()
+        print('email sent')
+    else:
+        print('results not sent today')
+
+times_to_take_test = 5
 
 def run_tests(sess):
-    for x in range(5):
+    for x in range(times_to_take_test):
         record_speed_test(sess)
 
 
 def run_tests_and_send():
     sess = init_db()
     run_tests(sess)
-    sent = send_results_email(sess)
-    if (sent):
-        u = unsents(sess)
-        for x in u:
-            x.sent = True 
-        sess.commit()
-    else:
-        print('results not sent today')
+    send_results_email(sess)
 
     
 
 
 if __name__ == "__main__":
     # run_tests_and_send()
-    run_tests_and_send()
+    parser  = argparse.ArgumentParser(description="Tests the internet, stores results and sends out results")
+    parser.add_argument('-t', '--test', help='Run a speed test, and store it', action="store_true")
+    parser.add_argument('-e', '--email', help='Send all unsent speed tests')
+    parser.add_argument('-i', '--iterations', type=int, help='Number of times to take the test (default 5)')
+    args = parser.parse_args()
+    sess = init_db()
+    print(args)
+    if (args.iterations):
+        times_to_take_test = args.iterations
+    if (args.test):
+        run_tests(sess)
+        print('ran tests')
+    if (args.email):
+        to_email = args.email
+        send_results_email(sess)
+
