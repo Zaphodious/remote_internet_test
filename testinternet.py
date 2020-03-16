@@ -129,13 +129,15 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--iterations', type=int, help='Number of times to take the test (default 5)')
     args = parser.parse_args()
     sess = init_db()
-    print(os.environ['TESTUSER'])
     if (args.iterations):
         times_to_take_test = args.iterations
     if (args.test):
+        print(f"Testing internet speed {times_to_take_test} times")
         run_tests(sess)
-        print('ran tests')
+        print("Tests are done")
     if (args.email):
         to_email = args.email
+        print(f"Sending test results to {to_email}")
         send_results_email(sess)
+        print("Email sent")
 
