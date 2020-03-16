@@ -12,8 +12,15 @@ import datetime
 import os
 
 import argparse
+import socket
 
 Base = declarative_base()
+
+devicename = "nohostnamedetected"
+try:
+    devicename = socket.gethostname()
+except:
+    pass
 
 class TestResult(Base):
     __tablename__ = 'testresults'
@@ -96,7 +103,7 @@ def unsents(sess):
 def send_results_email(sess):
     q = unsents(sess)
     jsonres = str(q)
-    sent = send_an_email(f"PTP Speed Results from {datetime.date.today()}", jsonres)
+    sent = send_an_email(f"PTP Speed Results from {datetime.date.today()} from {devicename}", jsonres)
     if (sent):
         u = unsents(sess)
         for x in u:
@@ -127,8 +134,11 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--test', help='Run a speed test, and store it', action="store_true")
     parser.add_argument('-e', '--email', help='Send all unsent speed tests')
     parser.add_argument('-i', '--iterations', type=int, help='Number of times to take the test (default 5)')
+    parser.add_argument('-n', '--name', help='Name of the system to use when sending an email')
     args = parser.parse_args()
     sess = init_db()
+    if (args.name):
+        devicename = args.name
     if (args.iterations):
         times_to_take_test = args.iterations
     if (args.test):
