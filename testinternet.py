@@ -1,7 +1,5 @@
 #!./env/bin/python3
 
-# Using https://stackabuse.com/how-to-send-emails-with-gmail-using-python/ as guide for sending gmails
-
 import smtplib
 import pyspeedtest
 from sqlalchemy import create_engine, Column, ForeignKey, Integer, String, Float, Boolean
@@ -10,18 +8,25 @@ from sqlalchemy.orm import relationship, sessionmaker
 import time
 import datetime
 import os
-
 import argparse
 import socket
+import sys
 
-Base = declarative_base()
+to_email = "" # Email that the message will be sent to. Set via the -e/--email command line arg
+times_to_take_test = 5 # Number of times that the test will be run. Set via the -i/--iterations command line arg
+devicename = "nohostnamedetected" # Name of the device that will be reported on the test. Default is the hostname of the machine. Set via the -n/--name command line arg
 
-devicename = "nohostnamedetected"
 try:
     devicename = socket.gethostname()
 except:
     pass
 
+def get_gmail_creds():
+    gmail_user = os.environ['TESTUSER']
+    gmail_pass = os.environ['TESTPASS']
+    return (gmail_user, gmail_pass)
+
+Base = declarative_base()
 class TestResult(Base):
     __tablename__ = 'testresults'
     id = Column(Integer, primary_key=True)
@@ -34,13 +39,24 @@ class TestResult(Base):
     def __repr__(self):
         return f'{{"date":{self.date},"ping":{self.ping},"upload":{self.upload},"download":{self.download}}}'
 
+def make_mbps(bps):
+    return round(bps / 1000000, 2)
 
-def init_db():
-    engine = create_engine('sqlite:///db.sqlite')
-    Base.metadata.create_all(engine)
-    DBSession = sessionmaker(bind=engine)
-    return DBSession()
-
+def record_speed_test(sess):
+    try:
+        record = None
+        st = pyspeedtest.SpeedTest()
+        record = TestResult(date=time.time())
+        # Adding results seperately, so that if any errors occur we still have results for the previous steps.
+        record.ping = round(st.ping(), 2)
+        record.download = make_mbps(st.download())
+        record.upload = make_mbps(st.upload())
+    except:
+        print("Speed Test didn't complete")
+    finally:
+        sess.add(record)
+        sess.commit()
+        return record
 
 def make_email(subject, body):
     user = os.environ['TESTUSER']
@@ -52,102 +68,67 @@ SUBJECT: {subject}
 {body}
     """
 
-def get_gmail_creds():
-    gmail_user = os.environ['TESTUSER']
-    gmail_pass = os.environ['TESTPASS']
-    return (gmail_user, gmail_pass)
-
-def setup_server():
-    try:
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        server.ehlo()
-        return server
-    except Exception as e:
-        print('something went wrong')
-        return False
-
-
-def record_speed_test(sess):
-    st = None
-    record = TestResult(date=time.time())
-    try:
-        st = pyspeedtest.SpeedTest()
-        record.ping = st.ping()
-        record.upload = st.upload()
-        record.download = st.download()
-    except:
-        print("Speed Test didn't complete")
-    sess.add(record)
-    sess.commit()
-    return record
-
-
 def send_an_email(subject, body):
-    server = setup_server()
+    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server.ehlo()
     user, password = get_gmail_creds()
     message = make_email(subject, body)
-    try:
-        server.login(user, password)
-        server.sendmail(user, 'achythlook@microcom.tv', message)
-        server.close()
-        return True
-    except:
-        print("whoops")
-        return False
+    server.login(user, password)
+    server.sendmail(user, to_email, message)
+    server.close()
+    return True
 
-def unsents(sess):
-    q = sess.query(TestResult).filter(TestResult.sent==False).all()
-    return q
 
+def format_results_for_email(q):
+    messagestring = """\
+| Time and Date | Ping (ms) | Download (mbps) | Upload (mbps) | Device |
+| ------------- | --------- | ------------- | --------------- | ------ |
+"""
+    for rec in q:
+        messagestring += f"| {datetime.datetime.utcfromtimestamp(round(rec.date))} | {rec.ping} | {rec.download} | {rec.upload} | {devicename} |\n"
+    return messagestring
 
 def send_results_email(sess):
-    q = unsents(sess)
-    jsonres = str(q)
-    sent = send_an_email(f"PTP Speed Results from {datetime.date.today()} from {devicename}", jsonres)
-    if (sent):
-        u = unsents(sess)
+    try:
+        u = sess.query(TestResult).filter(TestResult.sent==False).all()
+        sent = send_an_email(f"PTP Speed Results from {datetime.date.today()} from {devicename}", format_results_for_email(u))
         for x in u:
             x.sent = True 
         sess.commit()
-        print('email sent')
-    else:
+    except Exception as e:
         print('results not sent today')
+        print(e)
 
-times_to_take_test = 5
-
-def run_tests(sess):
-    for x in range(times_to_take_test):
-        record_speed_test(sess)
-
-
-def run_tests_and_send():
-    sess = init_db()
-    run_tests(sess)
-    send_results_email(sess)
-
-    
-
+def init_db():
+    engine = create_engine('sqlite:///db.sqlite')
+    Base.metadata.create_all(engine)
+    DBSession = sessionmaker(bind=engine)
+    return DBSession()
 
 if __name__ == "__main__":
-    # run_tests_and_send()
-    parser  = argparse.ArgumentParser(description="Tests the internet, stores results and sends out results")
+    parser  = argparse.ArgumentParser(description=' Tests the internet, stores results and sends out results. The environment variables "TESTUSER" and "TESTPASS" must be set to the email and password of the gmail account that will be used to send reesults. If no arguments are supplied, the script is ran as ./script -t -a')
     parser.add_argument('-t', '--test', help='Run a speed test, and store it', action="store_true")
-    parser.add_argument('-e', '--email', help='Send all unsent speed tests')
+    parser.add_argument('-e', '--email', help='Email to which to send the unsent results. If no email is provided, results will be cached and sent next time an address is provided.')
     parser.add_argument('-i', '--iterations', type=int, help='Number of times to take the test (default 5)')
-    parser.add_argument('-n', '--name', help='Name of the system to use when sending an email')
+    parser.add_argument('-n', '--name', help='Name of the system to use when sending an email (defaults to the hostname of the machine)')
+    parser.add_argument('-v', '--verbose', help='Display the speed test results as they are collected (defaults to false, and status messages are printed regardless.', action="store_true")
     args = parser.parse_args()
     sess = init_db()
+    print(sys.argv)
     if (args.name):
         devicename = args.name
     if (args.iterations):
         times_to_take_test = args.iterations
-    if (args.test):
+    if (args.test or len(sys.argv) == 1):
         print(f"Testing internet speed {times_to_take_test} times")
-        run_tests(sess)
-        print("Tests are done")
+        for x in range(times_to_take_test):
+            r = record_speed_test(sess)
+            if (args.verbose or not sys.argv):
+                print(f"Test {x+1}: ping={r.ping}, download={r.download}, upload={r.upload}")
+        print("Testing done")
     if (args.email):
         to_email = args.email
         print(f"Sending test results to {to_email}")
         send_results_email(sess)
-        print("Email sent")
+        print("Sending done")
 
