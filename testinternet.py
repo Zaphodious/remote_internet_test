@@ -37,7 +37,7 @@ class TestResult(Base):
     sent = Column(Boolean, default=False)
 
     def __repr__(self):
-        return f'{{"date":{self.date},"ping":{self.ping},"upload":{self.upload},"download":{self.download}}}'
+        return '{{"date":{date},"ping":{ping},"upload":{upload},"download":{download}}}'.format(date=self.date, ping=self.ping, upload=self.upload, download=self.download)
 
 def make_mbps(bps):
     return round(bps / 1000000, 2)
@@ -60,13 +60,13 @@ def record_speed_test(sess):
 
 def make_email(subject, body):
     user = os.environ['TESTUSER']
-    return f"""\
+    return """\
 FROM: {user}
 TO: {to_email}
 SUBJECT: {subject}
 
 {body}
-    """
+    """.format(user=user, to_email=to_email, subject=subject, body=body)
 
 def send_an_email(subject, body):
     server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
@@ -85,13 +85,19 @@ def format_results_for_email(q):
 | ------------- | --------- | ------------- | --------------- | ------ |
 """
     for rec in q:
-        messagestring += f"| {datetime.datetime.utcfromtimestamp(round(rec.date))} | {rec.ping} | {rec.download} | {rec.upload} | {devicename} |\n"
+        messagestring += "| {date} | {ping} | {download} | {upload} | {devicename} |\n".format(
+            date=datetime.datetime.utcfromtimestamp(round(rec.date)),
+            ping=rec.ping,
+            download=rec.download,
+            upload=rec.upload,
+            devicename=devicename
+        )
     return messagestring
 
 def send_results_email(sess):
     try:
         u = sess.query(TestResult).filter(TestResult.sent==False).all()
-        sent = send_an_email(f"PTP Speed Results from {datetime.date.today()} from {devicename}", format_results_for_email(u))
+        send_an_email("PTP Speed Results from {today} from {devicename}".format(devicename=devicename, today=datetime.date.today()), format_results_for_email(u))
         for x in u:
             x.sent = True 
         sess.commit()
@@ -120,15 +126,15 @@ if __name__ == "__main__":
     if (args.iterations):
         times_to_take_test = args.iterations
     if (args.test or len(sys.argv) == 1):
-        print(f"Testing internet speed {times_to_take_test} times")
+        print("Testing internet speed {} times".format(times_to_take_test))
         for x in range(times_to_take_test):
             r = record_speed_test(sess)
             if (args.verbose or not sys.argv):
-                print(f"Test {x+1}: ping={r.ping}, download={r.download}, upload={r.upload}")
+                print("Test {amt}: ping={ping}, download={download}, upload={upload}".format(amt=x+1, ping=r.ping, download=r.download, upload=r.upload))
         print("Testing done")
     if (args.email):
         to_email = args.email
-        print(f"Sending test results to {to_email}")
+        print("Sending test results to {}".format(to_email))
         send_results_email(sess)
         print("Sending done")
 
