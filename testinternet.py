@@ -15,6 +15,7 @@ import sys
 to_email = "" # Email that the message will be sent to. Set via the -e/--email command line arg
 times_to_take_test = 5 # Number of times that the test will be run. Set via the -i/--iterations command line arg
 devicename = "nohostnamedetected" # Name of the device that will be reported on the test. Default is the hostname of the machine. Set via the -n/--name command line arg
+useutc = True
 
 try:
     devicename = socket.gethostname()
@@ -85,8 +86,13 @@ def format_results_for_email(q):
 | ------------- | --------- | ------------- | --------------- | ------ |
 """
     for rec in q:
+        dt = ""
+        if (useutc):
+            dt = datetime.datetime.utcfromtimestamp(rec.date)
+        else:
+            dt = datetime.datetime.fromtimestamp(rec.date).strftime('%Y-%m-%d %H:%M:%S %z')
         messagestring += "| {date} | {ping} | {download} | {upload} | {devicename} |\n".format(
-            date=datetime.datetime.utcfromtimestamp(round(rec.date)),
+            date=dt,
             ping=rec.ping,
             download=rec.download,
             upload=rec.upload,
@@ -118,9 +124,11 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--iterations', type=int, help='Number of times to take the test (default 5)')
     parser.add_argument('-n', '--name', help='Name of the system to use when sending an email (defaults to the hostname of the machine)')
     parser.add_argument('-v', '--verbose', help='Display the speed test results as they are collected (defaults to false, and status messages are printed regardless.', action="store_true")
+    parser.add_argument('-u', '--utc', help='Sends the results with utc time. Default is to use the timezone of the host machine', action="store_true")
     args = parser.parse_args()
     sess = init_db()
     print(sys.argv)
+    useutc = args.utc
     if (args.name):
         devicename = args.name
     if (args.iterations):
