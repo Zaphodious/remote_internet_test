@@ -2,7 +2,7 @@
 
 This script will pull down a speed test, store the test in a sqlite database, and then attempt to send any unsent results to an email address. 
 
-Before this script works, you need to set environment variables TESTUSER (gmail address of account to send email from), and TESTPASS (gmail password of account to send email from)
+Before this script works, you need to set environment variables TESTUSER (gmail address of account to send email from), and TESTPASS (gmail password of account to send email from). You can easily add these to the 'run.sh' script that is generated after you run the setup file.
 
 Current output of ./testinternet.py -h
 
@@ -29,4 +29,14 @@ optional arguments:
                         (defaults to false, and status messages are printed
                         regardless.
 
+```
+
+To run as a cron job, make a proxy trigger script (easy way to ensure the proper working dir) in your home folder with the following content:
+```
+cd <absolute path to the project directory>
+. run.sh
+```
+In your crontab, past this in (edit the time to suit, this one runs every day at 7am)
+```
+* 7 * * * /bin/bash <absolute path to proxy script>  > <absolute path to log file>
 ```
