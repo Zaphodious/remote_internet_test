@@ -130,3 +130,6 @@ dmypy.json
 
 # Sqlite db
 *.sqlite
+
+# Run script, to prevent login details from being leaked.
+run.sh
