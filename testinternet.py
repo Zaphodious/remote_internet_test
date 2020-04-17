@@ -15,7 +15,7 @@ import sys
 to_email = "" # Email that the message will be sent to. Set via the -e/--email command line arg
 times_to_take_test = 5 # Number of times that the test will be run. Set via the -i/--iterations command line arg
 devicename = "nohostnamedetected" # Name of the device that will be reported on the test. Default is the hostname of the machine. Set via the -n/--name command line arg
-useutc = True
+useutc = False # If true, uses utc time when sending the email. If false, uses the timezone of the server 
 
 try:
     devicename = socket.gethostname()
