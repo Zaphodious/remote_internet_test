@@ -103,7 +103,7 @@ def format_results_for_email(q):
 def send_results_email(sess):
     try:
         u = sess.query(TestResult).filter(TestResult.sent==False).all()
-        send_an_email("PTP Speed Results from {today} from {devicename}".format(devicename=devicename, today=datetime.date.today()), format_results_for_email(u))
+        send_an_email("Speed Test Results from {today} from {devicename}".format(devicename=devicename, today=datetime.date.today()), format_results_for_email(u))
         for x in u:
             x.sent = True 
         sess.commit()
