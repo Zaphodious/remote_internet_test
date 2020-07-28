@@ -49,10 +49,11 @@ optional arguments:
 
 To run as a cron job, make a proxy trigger script (easy way to ensure the proper working dir) in your home folder with the following content:
 ```
+#!/bin/bash
 cd <absolute path to the project directory>
 . run.sh
 ```
 In your crontab, past this in (edit the time to suit, this one runs every day at 7am)
 ```
-* 7 * * * /bin/bash <absolute path to proxy script>  > <absolute path to log file>
+* 7 * * * <absolute path to proxy script>  > <absolute path to log file>
 ```
