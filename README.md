@@ -4,6 +4,10 @@ This script will pull down a speed test, store the test in a sqlite database, an
 
 Before this script works, you need to set environment variables TESTUSER (gmail address of account to send email from), and TESTPASS (gmail password of account to send email from). You can easily add these to the 'run.sh' script that is generated after you run the setup file.
 
+Requires python3 and python3-venv
+
+To build standalone, requires python3-dev
+
 Current output of ./testinternet.py -h
 
 ```
