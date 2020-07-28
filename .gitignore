@@ -135,3 +135,6 @@ dmypy.json
 run.sh
 
 .DS_Store
+
+# We should keep this to ourselves
+.vscode
