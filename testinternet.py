@@ -11,11 +11,14 @@ import os
 import argparse
 import socket
 import sys
+import subprocess
+import re
 
 to_email = "" # Email that the message will be sent to. Set via the -e/--email command line arg
 times_to_take_test = 5 # Number of times that the test will be run. Set via the -i/--iterations command line arg
 devicename = "nohostnamedetected" # Name of the device that will be reported on the test. Default is the hostname of the machine. Set via the -n/--name command line arg
 useutc = False # If true, uses utc time when sending the email. If false, uses the timezone of the server. set via -u/--utc
+pingtest = False
 
 try:
     devicename = socket.gethostname()
@@ -50,14 +53,36 @@ def record_speed_test(sess):
         record = TestResult(date=time.time())
         # Adding results seperately, so that if any errors occur we still have results for the previous steps.
         record.ping = round(st.ping(), 2)
-        record.download = make_mbps(st.download())
-        record.upload = make_mbps(st.upload())
+        if (not pingtest):
+            record.download = make_mbps(st.download())
+            record.upload = make_mbps(st.upload())
     except:
         print("Speed Test didn't complete")
     finally:
         sess.add(record)
-        sess.commit()
+        # sess.commit()
         return record
+
+upingreg_raw = r'time=[0-9\.]*'
+upingreg = re.compile(upingreg_raw)
+
+
+def do_unix_ping_test(sess):
+    try:
+        record = None
+        record = TestResult(date=time.time())
+        # Adding results seperately, so that if any errors occur we still have results for the previous steps.
+        ping_response = subprocess.Popen(["ping", "-c 1", "-W 100", "www.google.com"], stdout=subprocess.PIPE).stdout.read()
+        timeres_str = upingreg.findall(ping_response.decode('UTF-8'))[0].replace('time=', '')
+        timeres = float(timeres_str)
+        record.ping = timeres
+    except Exception as e:
+        print("Speed Test didn't complete")
+    finally:
+        sess.add(record)
+        # sess.commit()
+        return record
+
 
 def make_email(subject, body):
     user = os.environ['TESTUSER']
@@ -120,6 +145,8 @@ def init_db():
 if __name__ == "__main__":
     parser  = argparse.ArgumentParser(description=' Tests the internet, stores results and sends out results. The environment variables "TESTUSER" and "TESTPASS" must be set to the email and password of the gmail account that will be used to send reesults. If no arguments are supplied, the script is ran as ./script -t -a')
     parser.add_argument('-t', '--test', help='Run a speed test, and store it', action="store_true")
+    parser.add_argument('-p', '--ping', help='Run a ping test, and store it. -t/--test is ignored when using this command.', action="store_true")
+    parser.add_argument('-up', '--unixping', help='Run a ping test, using the systems ping command. Ignores -p and -t. Does not work on Windows.', action="store_true")
     parser.add_argument('-e', '--email', help='Email to which to send the unsent results. If no email is provided, results will be cached and sent next time an address is provided.')
     parser.add_argument('-i', '--iterations', type=int, help='Number of times to take the test (default 5)')
     parser.add_argument('-n', '--name', help='Name of the system to use when sending an email (defaults to the hostname of the machine)')
@@ -129,17 +156,23 @@ if __name__ == "__main__":
     sess = init_db()
     print(sys.argv)
     useutc = args.utc
+    pingtest = args.ping
     if (args.name):
         devicename = args.name
     if (args.iterations):
         times_to_take_test = args.iterations
-    if (args.test or len(sys.argv) == 1):
+    if (args.test or args.ping or len(sys.argv) == 1) and not args.unixping:
         print("Testing internet speed {} times".format(times_to_take_test))
         for x in range(times_to_take_test):
             r = record_speed_test(sess)
             if (args.verbose or not sys.argv):
                 print("Test {amt}: ping={ping}, download={download}, upload={upload}".format(amt=x+1, ping=r.ping, download=r.download, upload=r.upload))
+        sess.commit()
         print("Testing done")
+    if args.unixping:
+        for x in range(times_to_take_test):
+            do_unix_ping_test(sess)
+        sess.commit()
     if (args.email):
         to_email = args.email
         print("Sending test results to {}".format(to_email))

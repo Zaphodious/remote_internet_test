@@ -133,3 +133,5 @@ dmypy.json
 
 # Run script, to prevent login details from being leaked.
 run.sh
+
+.DS_Store
