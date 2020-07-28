@@ -2,13 +2,17 @@
 
 This script will pull down a speed test, store the test in a sqlite database, and then attempt to send any unsent results to an email address. 
 
-Before this script works, you need to set environment variables TESTUSER (gmail address of account to send email from), and TESTPASS (gmail password of account to send email from). You can easily add these to the 'run.sh' script that is generated after you run the setup file.
+## Getting Started
 
-Requires python3 and python3-venv
+1. Make sure you have python3 and python3-venv
 
-To build standalone, requires python3-dev
+1. run either setup_and_run.sh or setup_no_run.sh
 
-Current output of ./testinternet.py -h
+1. Modify the newly-created run.sh with environment variables TESTUSER (the gmail address that results will be sent *from*), and TESTPASS (the password of TESTUSER). Edit the arguments for testinternet.py as appropriate.
+
+1. run run.sh
+
+## Current output of ./testinternet.py -h
 
 ```
 usage: testinternet.py [-h] [-t] [-p] [-up] [-e EMAIL] [-i ITERATIONS]
@@ -40,6 +44,8 @@ optional arguments:
   -u, --utc             Sends the results with utc time. Default is to use the
                         timezone of the host machine
 ```
+
+## Cron
 
 To run as a cron job, make a proxy trigger script (easy way to ensure the proper working dir) in your home folder with the following content:
 ```
