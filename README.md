@@ -27,9 +27,10 @@ optional arguments:
   -h, --help            show this help message and exit
   -t, --test            Run a speed test, and store it
   -p, --ping            Run a ping test, and store it. -t/--test is ignored
-                        when using this command.
-  -up, --unixping       Run a ping test, using the systems ping command.
-                        Ignores -p and -t. Does not work on Windows.
+                        when using this command. Up/Down speed is recorded as
+                        NULL for this test.
+  -up, --unixping       Use the system ping command, when running -t or -p.
+                        Does not work with Windows.
   -e EMAIL, --email EMAIL
                         Email to which to send the unsent results. If no email
                         is provided, results will be cached and sent next time
