@@ -14,6 +14,7 @@ import socket
 import sys
 import subprocess
 import re
+from urllib.request import urlopen
 
 from email.mime.image import MIMEImage
 from email.mime.text import MIMEText
@@ -172,6 +173,23 @@ def format_results_for_email(q):
         )
     return messagestring
 
+def get_public_ip():
+    with urlopen('https://api.ipify.org') as r:
+        ip = r.read()
+        ip = ip.decode("utf-8") 
+        return ip
+
+def get_internal_ip():
+    return socket.gethostbyname(socket.gethostname())
+
+def make_email_body(q):
+    l = len(q)
+    pubip = get_public_ip()
+    prvip = get_internal_ip()
+    emailbody = """Results from {machinename}. Public IP {publicip}, Internal IP {internalip}. Please see the attached CSV file.""".format(machinename=devicename, publicip=pubip,internalip=prvip)
+    return emailbody
+    
+
 def make_csv(q):
     messagestring = """pk,date,devicename,upload,download,ping\n"""
     for rec in q:
@@ -195,7 +213,7 @@ def send_results_email(sess):
         u = sess.query(TestResult).filter(TestResult.sent==False).all()
         send_an_email(
         "Speed Test Results from {today} from {devicename}".format(devicename=devicename, today=datetime.date.today()),
-        format_results_for_email(u),
+        make_email_body(u),
         make_csv(u)
         )
         for x in u:
