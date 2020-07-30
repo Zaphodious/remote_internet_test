@@ -15,6 +15,12 @@ import sys
 import subprocess
 import re
 
+from email.mime.image import MIMEImage
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+
 to_email = "" # Email that the message will be sent to. Set via the -e/--email command line arg
 times_to_take_test = 5 # Number of times that the test will be run. Set via the -i/--iterations command line arg
 devicename = "nohostnamedetected" # Name of the device that will be reported on the test. Default is the hostname of the machine. Set via the -n/--name command line arg
@@ -105,13 +111,43 @@ SUBJECT: {subject}
 {body}
     """.format(user=user, to_email=to_email, subject=subject, body=body)
 
-def send_an_email(subject, body):
+def send_an_email_old(subject, body):
     server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
     server.ehlo()
     user, password = get_gmail_creds()
     message = make_email(subject, body)
     server.login(user, password)
     server.sendmail(user, to_email, message)
+    server.close()
+    return True
+
+
+COMMASPACE = ', '
+
+
+def send_an_email(subject, body, attachment_string=None):
+    user, password = get_gmail_creds() # Do this first, so that we fail fast if this isn't set
+    msg = MIMEMultipart()
+    msg['Subject'] = subject
+    # me == the sender's email address
+    # family = the list of all recipients' email addresses
+    msg['From'] = user
+    msg['To'] = to_email
+
+    if attachment_string:
+        part = MIMEText(attachment_string, "csv")
+        # encoders.encode_base64(part)
+        part.add_header('Content-Disposition', 'attachment', filename='data_{subject}.csv'.format(subject=subject))
+        msg.attach(part)
+    
+    part = MIMEText(body)
+    msg.attach(part)
+
+    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server.ehlo()
+    server.login(user, password)
+    print(msg.as_string())
+    server.sendmail(user, to_email, msg.as_string())
     server.close()
     return True
 
@@ -136,10 +172,32 @@ def format_results_for_email(q):
         )
     return messagestring
 
+def make_csv(q):
+    messagestring = """pk,date,devicename,upload,download,ping\n"""
+    for rec in q:
+        dt = ""
+        if (useutc):
+            dt = datetime.datetime.utcfromtimestamp(rec.date)
+        else:
+            dt = datetime.datetime.fromtimestamp(rec.date).strftime('%Y-%m-%d %H:%M:%S %z')
+        messagestring += ",{date},{devicename},{upload},{download},{ping}\n".format(
+            date=dt,
+            devicename=devicename,
+            upload=rec.upload,
+            download=rec.download,
+            ping=rec.ping
+        )
+    return messagestring
+
+
 def send_results_email(sess):
     try:
         u = sess.query(TestResult).filter(TestResult.sent==False).all()
-        send_an_email("Speed Test Results from {today} from {devicename}".format(devicename=devicename, today=datetime.date.today()), format_results_for_email(u))
+        send_an_email(
+        "Speed Test Results from {today} from {devicename}".format(devicename=devicename, today=datetime.date.today()),
+        format_results_for_email(u),
+        make_csv(u)
+        )
         for x in u:
             x.sent = True 
         sess.commit()
