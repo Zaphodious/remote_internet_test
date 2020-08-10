@@ -15,8 +15,9 @@ This script will pull down a speed test, store the test in a sqlite database, an
 ## Current output of ./testinternet.py -h
 
 ```
-usage: testinternet.py [-h] [-t] [-p] [-up] [-e EMAIL] [-i ITERATIONS]
-                       [-n NAME] [-v] [-u]
+usage: testinternet.py [-h] [-t] [-p] [-up UNIXPING] [-e EMAIL]
+                       [-i ITERATIONS] [-n NAME] [-v] [-u] [-s SCPHOST]
+                       [-d DIRECTORY]
 
 Tests the internet, stores results and sends out results. The environment
 variables "TESTUSER" and "TESTPASS" must be set to the email and password of
@@ -29,8 +30,9 @@ optional arguments:
   -p, --ping            Run a ping test, and store it. -t/--test is ignored
                         when using this command. Up/Down speed is recorded as
                         NULL for this test.
-  -up, --unixping       Use the system ping command, when running -t or -p.
-                        Does not work with Windows.
+  -up UNIXPING, --unixping UNIXPING
+                        Domain to ping, using the system ping command. Does
+                        not work on Windows
   -e EMAIL, --email EMAIL
                         Email to which to send the unsent results. If no email
                         is provided, results will be cached and sent next time
@@ -44,6 +46,11 @@ optional arguments:
                         regardless.
   -u, --utc             Sends the results with utc time. Default is to use the
                         timezone of the host machine
+  -s SCPHOST, --scphost SCPHOST
+                        Uploads the results to a location over SSH
+  -d DIRECTORY, --directory DIRECTORY
+                        The path of directory on the SCP host machine in which
+                        to put the report file and logs
 ```
 
 ## Cron
