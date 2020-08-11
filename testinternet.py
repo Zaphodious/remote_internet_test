@@ -236,15 +236,21 @@ def scp_connection(*args, **kwargs):
     scpclient = SCPClient(client.get_transport())
     with scpclient as s:
         yield scpclient
+    
+def timenow():
+    return datetime.datetime.utcfromtimestamp(time.time())
 
 def upload_dir():
     return scp_dir # path.join(scp_dir, devicename)
 
 def upload_name():
-    return "{time}_FROM_{devicename}.csv".format(devicename=devicename,time=datetime.datetime.utcfromtimestamp(time.time()))
+    return "{time}_FROM_{devicename}.csv".format(devicename=devicename,time=timenow())
 
 def upload_path():
     return path.join(upload_dir(), upload_name())
+
+def log_path():
+    return path.join(upload_dir(), "log_{time}_{devicename}.log".format(time=timenow(), devicename=devicename))
 
 def upload_via_scp(conn):
     u,p = get_ssh_creds()
@@ -257,7 +263,9 @@ def upload_via_scp(conn):
             print(upload_path())
             csv = make_csv(res)
             csv_file = StringIO(csv)
+            log_file = StringIO("Upload from {pubip}/{prvip} at {timeat}".format(pubip=get_public_ip(), prvip=get_internal_ip(), timeat=timenow()))
             c.putfo(csv_file, upload_path())
+            c.putfo(log_file, log_path())
             mark_all_as_sent(sess)
             pass
     except Exception as e:
