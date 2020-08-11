@@ -249,6 +249,9 @@ def upload_name():
 def upload_path():
     return path.join(upload_dir(), upload_name())
 
+def make_log_string():
+    return "upload from {pubip}/{prvip} at {timeat}".format(pubip=get_public_ip(), prvip=get_internal_ip(), timeat=timenow())
+
 def log_path():
     return path.join(upload_dir(), "log_{time}_{devicename}.log".format(time=timenow(), devicename=devicename))
 
@@ -263,7 +266,7 @@ def upload_via_scp(conn):
             print(upload_path())
             csv = make_csv(res)
             csv_file = StringIO(csv)
-            log_file = StringIO("Upload from {pubip}/{prvip} at {timeat}".format(pubip=get_public_ip(), prvip=get_internal_ip(), timeat=timenow()))
+            log_file = StringIO(make_log_string())
             c.putfo(csv_file, upload_path())
             c.putfo(log_file, log_path())
             mark_all_as_sent(sess)
