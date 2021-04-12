@@ -77,7 +77,7 @@ def record_speed_test(sess):
         record = TestResult(date=time.time())
         # Adding results seperately, so that if any errors occur we still have results for the previous steps.
         if uptest:
-            ping_response = subprocess.Popen(["ping", "-c 1", "-W 100", "www.google.com"], stdout=subprocess.PIPE).stdout.read()
+            ping_response = subprocess.Popen(["ping", "-c 1", "-W 100", uptest], stdout=subprocess.PIPE).stdout.read()
             timeres_str = upingreg.findall(ping_response.decode('UTF-8'))[0].replace('time=', '')
             timeres = float(timeres_str)
             record.ping = timeres

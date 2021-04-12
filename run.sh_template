@@ -1,6 +1,6 @@
 . goenv
 export TESTUSER="<sending gmail here>"
-export TESTPASS="<sending pass here>
+export TESTPASS="<sending pass here>"
 export SSHUSER="<server username here>"
 export SSHPASS="<server ssh pass here>"
 ./testinternet.py -t -e <email here> -i 10 -n "<computer name here>"
